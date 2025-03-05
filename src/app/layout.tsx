@@ -1,5 +1,6 @@
 import { Inter } from "next/font/google";
 import { Navbar } from "./components/navigation/Navbar";
+import { ComingSoonBanner } from "./components/ComingSoonBanner";
 import "./globals.css";
 import { ClientProvider } from '@/providers/ClientProvider';
 import { metadata } from './metadata';
@@ -26,6 +27,7 @@ export default function RootLayout({
           <main className="flex-1">
             {children}
           </main>
+          <ComingSoonBanner />
         </ClientProvider>
       </body>
     </html>
