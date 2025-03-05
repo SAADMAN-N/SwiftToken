@@ -1,13 +1,12 @@
 import { openai } from '../openai';
-import { TokenGenerationPrompt } from '../../types/generation';
-import { MemeTokenMetadata } from '../../types/memecoin';
 import { gatherTrendingData } from './trendingData';
-import { TrendingData } from '../../types/trending';
-import { generateTokenImage } from './imageGenerator';
+import { MemeTokenMetadata } from '@/types/memecoin';
+import { TokenGenerationPrompt } from '@/types/generation';
+import { TrendingData } from '@/types/trending';
 
-export async function generateTokenIdea(
-  prompt: TokenGenerationPrompt
-): Promise<MemeTokenMetadata | { error: string }> {
+const PLACEHOLDER_IMAGE = "https://placehold.co/1024x1024/png";
+
+export async function generateTokenIdea(prompt: TokenGenerationPrompt): Promise<MemeTokenMetadata | { error: string }> {
   try {
     const trendingData = await gatherTrendingData();
     
@@ -16,7 +15,7 @@ export async function generateTokenIdea(
       messages: [
         {
           role: "system",
-          content: "You are a crypto memecoin expert specializing in viral political and tech trends. Focus on creating memecoins inspired by controversial figures like Trump, Elon Musk, or major political events. Make it provocative but not offensive, with high viral potential."
+          content: "You are a memecoin generator. Generate ONE single memecoin based on current trends. The description MUST be a detailed visual scene that can be used for image generation. Return ONLY a valid JSON object with the following structure exactly: {\"name\": string, \"symbol\": string, \"description\": string, \"imageUrl\": string, \"attributes\": {\"memeScore\": number, \"viralPotential\": number, \"uniqueness\": number}}"
         },
         {
           role: "user",
@@ -27,55 +26,41 @@ ${trendingData.topics.join('\n')}
 
 Context: ${trendingData.context}
 
-Focus on:
-- Political drama and controversies
-- Tech billionaire actions/tweets
-- Viral social media moments
-- Current political events
-
 Requirements:
 - Name: creative full name (can be provocative)
 - Symbol: 3-6 letters
-- Description: viral description with emojis, reference current events
-- imageUrl: use "https://raw.githubusercontent.com/your-org/your-repo/main/placeholder.png"
+- Description: MUST be a detailed visual scene description (example: "pepe in soldiers uniform fighting in a war, holding a crypto flag")
+- imageUrl: use "${PLACEHOLDER_IMAGE}"
 - Attributes:
   - memeScore: number between 70-100
   - viralPotential: number between 70-100
   - uniqueness: number between 70-100
 
-Respond with ONLY a JSON object matching the exact structure above.`
+Make sure the description is VERY specific and detailed for image generation.`
         }
       ],
-      temperature: 0.9, // Increased for more creative results
+      temperature: 0.9,
       max_tokens: 500
     });
 
     const content = completion.choices[0].message.content;
-    
     if (!content) {
-      throw new Error("Empty response from OpenAI");
+      throw new Error('No content in response');
     }
 
-    try {
-      const parsedResponse = JSON.parse(content.trim()) as MemeTokenMetadata;
-      
-      // Generate image for the token
-      const imageUrl = await generateTokenImage(parsedResponse);
-      if (imageUrl) {
-        parsedResponse.imageUrl = imageUrl;
-      } else {
-        parsedResponse.imageUrl = "https://raw.githubusercontent.com/your-org/your-repo/main/default-token.png";
-      }
-
-      return parsedResponse;
-    } catch (parseError) {
-      console.error("JSON Parse Error:", parseError);
-      console.error("Raw content:", content);
-      return { error: "Failed to parse token generation response" };
+    const parsedContent = JSON.parse(content);
+    
+    // Ensure we use the actual generated image or fallback to placeholder
+    const tokenData = parsedContent as MemeTokenMetadata;
+    if (!tokenData.imageUrl) {
+      tokenData.imageUrl = PLACEHOLDER_IMAGE;
     }
+    
+    return tokenData;
+
   } catch (error) {
-    console.error("Token Generation Error:", error);
-    return { error: "Failed to generate token idea" };
+    console.error('Error generating token:', error);
+    return { error: 'Failed to generate token' };
   }
 }
 
@@ -86,10 +71,9 @@ Keywords: ${prompt.keywords?.join(', ') || 'crypto, viral, moon'}`;
 }
 
 function analyzeNewsRelevance(trendingData: TrendingData): string {
-  // Filter and analyze news-specific trends
   const newsTopics = trendingData.topics
-    .filter((topic: string) => topic.startsWith('NEWS:'))
-    .map((topic: string) => topic.replace('NEWS:', '').trim());
+    .filter(topic => topic.startsWith('NEWS:'))
+    .map(topic => topic.replace('NEWS:', '').trim());
   
   return newsTopics.length > 0 
     ? `Key news trends: ${newsTopics.join(', ')}`
@@ -97,10 +81,9 @@ function analyzeNewsRelevance(trendingData: TrendingData): string {
 }
 
 function analyzeSocialTrends(trendingData: TrendingData): string {
-  // Analyze social media specific trends
   const socialTopics = trendingData.topics
-    .filter((topic: string) => topic.startsWith('SOCIAL:'))
-    .map((topic: string) => topic.replace('SOCIAL:', '').trim());
+    .filter(topic => topic.startsWith('SOCIAL:'))
+    .map(topic => topic.replace('SOCIAL:', '').trim());
   
   return socialTopics.length > 0
     ? `Viral social topics: ${socialTopics.join(', ')}`

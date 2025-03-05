@@ -7,7 +7,7 @@
 - Styling: TailwindCSS 4.x ✓
 - AI:
   - Text: OpenAI API (GPT-4) ✓
-  - Image: Stable Diffusion via Replicate API
+  - Image: Google Imagen-3 via Replicate API
 - Blockchain: Solana Web3.js, Phantom Wallet ✓
 - Image Processing: Sharp.js (watermarking only)
 - Type Validation: Zod for runtime type safety ✓
@@ -168,14 +168,13 @@ NEXT_PUBLIC_PAID_PRICE_SOL=0.01
 NEXT_PUBLIC_BULK_PRICE_SOL=0.025
 ```
 
-## Stable Diffusion Configuration
+## Imagen-3 Configuration
 
-- Model: stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b
+- Model: google/imagen-3
 - Parameters:
   - width: 1024
   - height: 1024
   - num_outputs: 1
-  - scheduler: K_EULER
-  - num_inference_steps: 50
   - guidance_scale: 7.5
   - prompt_strength: 0.8
+  - steps: 50

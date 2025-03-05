@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { MemeTokenMetadata } from '@/types/generation';
+import { MemeTokenMetadata } from '@/types/memecoin';
 import { MemecoinCard } from './components/cards/MemecoinCard';
 import { LoadingCard } from './components/cards/LoadingCard';
 
