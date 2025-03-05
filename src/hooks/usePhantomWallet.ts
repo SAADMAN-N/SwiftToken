@@ -1,65 +1,95 @@
 'use client';
 
-import { useWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { PublicKey, Transaction } from '@solana/web3.js';
+
+interface PhantomWindow extends Window {
+  solana?: {
+    isPhantom?: boolean;
+    connect: () => Promise<{ publicKey: PublicKey }>;
+    disconnect: () => Promise<void>;
+    signAndSendTransaction: (transaction: Transaction) => Promise<{ signature: string }>;
+    publicKey: PublicKey | null;
+    connected: boolean;
+  };
+}
 
 export const usePhantomWallet = () => {
-  const { 
-    publicKey,
-    connecting,
-    connected,
-    connect,
-    disconnect,
-    wallet,
-    select
-  } = useWallet();
-  const { setVisible } = useWalletModal();
+  const [connected, setConnected] = useState(false);
+  const [publicKey, setPublicKey] = useState<PublicKey | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [isPhantomInstalled, setIsPhantomInstalled] = useState(false);
 
-  useEffect(() => {
-    const checkPhantom = async () => {
-      if (typeof window !== 'undefined') {
-        const isPhantom = (window as any)?.phantom?.solana?.isPhantom || false;
-        setIsPhantomInstalled(isPhantom);
+  const getProvider = useCallback(() => {
+    if (typeof window !== 'undefined' && 'solana' in window) {
+      const win = window as PhantomWindow;
+      const provider = win.solana;
+      if (provider?.isPhantom) {
+        return provider;
       }
-    };
-    
-    checkPhantom();
+    }
+    return null;
   }, []);
 
-  const handleConnect = async () => {
+  const connect = async () => {
     try {
-      setError(null);
-      if (!wallet) {
-        setVisible(true);
-      } else {
-        await connect();
+      setIsLoading(true);
+      const provider = getProvider();
+      if (provider) {
+        const response = await provider.connect();
+        setPublicKey(response.publicKey);
+        setConnected(true);
       }
-    } catch (err: any) {
-      console.error('Connection error:', err);
-      setError(err.message || 'Failed to connect');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to connect wallet');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleDisconnect = async () => {
+  const disconnect = async () => {
     try {
-      setError(null);
-      await disconnect();
-    } catch (err: any) {
-      console.error('Disconnection error:', err);
-      setError(err.message || 'Failed to disconnect');
+      const provider = getProvider();
+      if (provider) {
+        await provider.disconnect();
+        setPublicKey(null);
+        setConnected(false);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to disconnect wallet');
     }
   };
+
+  const sendTransaction = async (transaction: Transaction) => {
+    const provider = getProvider();
+    if (!provider) throw new Error('Phantom wallet not found');
+    
+    const { signature } = await provider.signAndSendTransaction(transaction);
+    return signature;
+  };
+
+  useEffect(() => {
+    const checkProvider = () => {
+      const provider = getProvider();
+      setIsPhantomInstalled(!!provider);
+      if (provider) {
+        setConnected(provider.connected);
+        setPublicKey(provider.publicKey);
+      }
+    };
+
+    checkProvider();
+  }, [getProvider]);
 
   return {
     isPhantomInstalled,
     connected,
-    connect: handleConnect,
-    disconnect: handleDisconnect,
+    connect,
+    disconnect,
     error,
-    isLoading: connecting,
-    publicKey: publicKey?.toString() || null
+    isLoading,
+    publicKey,
+    sendTransaction
   };
 };

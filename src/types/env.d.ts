@@ -3,7 +3,8 @@ declare global {
     interface ProcessEnv {
       OPENAI_API_KEY: string;
       REPLICATE_API_TOKEN: string;
-      MERCHANT_WALLET_ADDRESS: string;
+      NEXT_PUBLIC_MERCHANT_WALLET_ADDRESS: string;
+      NEXT_PUBLIC_SOLANA_RPC_URL: string;
       SOLANA_NETWORK: 'devnet' | 'mainnet';
       NEXT_PUBLIC_FREE_GENERATIONS_PER_USER: string;
       NEXT_PUBLIC_PAID_PRICE_SOL: string;
