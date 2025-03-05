@@ -3,48 +3,62 @@ import { env } from '@/lib/env';
 
 export class WalletService {
   private connection: Connection;
+  private treasuryWallet: PublicKey;
 
   constructor() {
     this.connection = new Connection(env.NEXT_PUBLIC_SOLANA_RPC_URL);
-  }
-
-  async getBalance(walletAddress: string): Promise<number> {
-    try {
-      const pubKey = new PublicKey(walletAddress);
-      const balance = await this.connection.getBalance(pubKey);
-      return balance / LAMPORTS_PER_SOL;
-    } catch (error) {
-      console.error('Failed to get wallet balance:', error);
-      throw new Error('Failed to get wallet balance');
-    }
+    this.treasuryWallet = new PublicKey(process.env.NEXT_PUBLIC_MERCHANT_WALLET_ADDRESS!);
   }
 
   async verifyTransaction(signature: string): Promise<boolean> {
     try {
-      const transaction = await this.connection.getTransaction(signature);
-      if (!transaction) return false;
+      // Wait for transaction confirmation first
+      console.log('Waiting for transaction confirmation...');
+      await this.connection.confirmTransaction(signature);
+      
+      console.log('Getting transaction details...');
+      const transaction = await this.connection.getTransaction(signature, {
+        maxSupportedTransactionVersion: 0,
+        commitment: 'confirmed'
+      });
+      
+      if (!transaction) {
+        console.error('Transaction not found after confirmation');
+        return false;
+      }
 
       // Verify transaction details
       const { meta } = transaction;
-      if (!meta) return false;
+      if (!meta) {
+        console.error('Transaction metadata not found');
+        return false;
+      }
 
-      // Check if transaction was successful
-      if (meta.err) return false;
+      // Check if the transaction was successful
+      if (meta.err) {
+        console.error('Transaction failed', meta.err);
+        return false;
+      }
 
-      // Verify recipient is merchant wallet
-      const merchantWallet = new PublicKey(env.NEXT_PUBLIC_MERCHANT_WALLET_ADDRESS);
-      const postBalances = meta.postBalances;
-      const preBalances = meta.preBalances;
-      
-      // Verify merchant received payment
-      const merchantIndex = transaction.transaction.message.accountKeys.findIndex(
-        key => key.equals(merchantWallet)
-      );
-      
-      if (merchantIndex === -1) return false;
-      
-      const merchantBalanceChange = postBalances[merchantIndex] - preBalances[merchantIndex];
-      return merchantBalanceChange > 0;
+      // Log the transaction details for debugging
+      const recipientAddress = transaction.transaction.message.accountKeys[1].toString();
+      const expectedAddress = this.treasuryWallet.toString();
+      const amount = (meta.postBalances[1] - meta.preBalances[1]) / LAMPORTS_PER_SOL;
+
+      console.log('Transaction details:', {
+        signature,
+        recipient: recipientAddress,
+        expectedRecipient: expectedAddress,
+        amount
+      });
+
+      // Verify the recipient
+      if (recipientAddress !== expectedAddress) {
+        console.error('Invalid recipient');
+        return false;
+      }
+
+      return true;
     } catch (error) {
       console.error('Failed to verify transaction:', error);
       return false;

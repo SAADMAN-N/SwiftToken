@@ -11,11 +11,12 @@ CREATE TABLE "User" (
 CREATE TABLE "Generation" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "userId" TEXT NOT NULL,
+    "requestId" TEXT NOT NULL,
     "tokenName" TEXT NOT NULL,
     "tokenSymbol" TEXT NOT NULL,
-    "imageUrl" TEXT,
+    "imageUrl" TEXT NOT NULL,
+    "status" TEXT NOT NULL,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "status" TEXT NOT NULL DEFAULT 'completed',
     CONSTRAINT "Generation_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
@@ -33,8 +34,35 @@ CREATE TABLE "Transaction" (
     CONSTRAINT "Transaction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
+-- CreateTable
+CREATE TABLE "CreditTransaction" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "amount" INTEGER NOT NULL,
+    "type" TEXT NOT NULL,
+    "balanceAfter" INTEGER NOT NULL,
+    "description" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "CreditTransaction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_walletAddress_key" ON "User"("walletAddress");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Generation_requestId_key" ON "Generation"("requestId");
+
+-- CreateIndex
+CREATE INDEX "Generation_userId_idx" ON "Generation"("userId");
+
+-- CreateIndex
+CREATE INDEX "Generation_requestId_idx" ON "Generation"("requestId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Transaction_signature_key" ON "Transaction"("signature");
+
+-- CreateIndex
+CREATE INDEX "CreditTransaction_userId_idx" ON "CreditTransaction"("userId");
+
+-- CreateIndex
+CREATE INDEX "CreditTransaction_createdAt_idx" ON "CreditTransaction"("createdAt");

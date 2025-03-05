@@ -8,35 +8,54 @@ generator client {
 }
 
 model User {
-  id            String        @id @default(cuid())
-  walletAddress String        @unique
-  credits       Int           @default(1) // Start with 1 free credit
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  generations   Generation[]
-  transactions  Transaction[]
+  id                 String              @id @default(cuid())
+  walletAddress      String              @unique
+  credits            Int                 @default(1)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  generations        Generation[]
+  transactions       Transaction[]
+  creditTransactions CreditTransaction[]
 }
 
 model Generation {
   id          String   @id @default(cuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id])
+  requestId   String   @unique
   tokenName   String
   tokenSymbol String
-  imageUrl    String?
+  imageUrl    String
+  status      String
   createdAt   DateTime @default(now())
-  status      String   @default("completed") // pending, completed, failed
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([requestId])
 }
 
 model Transaction {
   id            String    @id @default(cuid())
   userId        String
   user          User      @relation(fields: [userId], references: [id])
-  amount        Float // in SOL
+  amount        Float
   signature     String    @unique
-  status        String // pending, confirmed, failed
-  credits       Int // number of credits purchased
-  paymentMethod String    @default("solana") // solana, stripe
+  status        String
+  credits       Int
+  paymentMethod String    @default("solana")
   createdAt     DateTime  @default(now())
   confirmedAt   DateTime?
+}
+
+model CreditTransaction {
+  id           String   @id @default(cuid())
+  userId       String
+  amount       Int
+  type         String
+  balanceAfter Int
+  description  String?
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
+// Add debug logging
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-02-24.acacia'
 });
@@ -8,7 +9,12 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 export async function POST(request: Request) {
   try {
     const { credits, amount, walletAddress } = await request.json();
-    console.log('Creating checkout session with:', { credits, amount, walletAddress }); // Debug log
+    console.log('Payment attempt:', { credits, amount, walletAddress });
+
+    if (!process.env.STRIPE_SECRET_KEY) {
+      console.error('Missing STRIPE_SECRET_KEY');
+      return NextResponse.json({ error: 'Stripe configuration error' }, { status: 500 });
+    }
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -20,7 +26,7 @@ export async function POST(request: Request) {
               name: `${credits} Credits`,
               description: 'SwiftToken Credits',
             },
-            unit_amount: Math.round(amount * 100), // Convert to cents
+            unit_amount: Math.round(amount * 100),
           },
           quantity: 1,
         },
@@ -34,10 +40,9 @@ export async function POST(request: Request) {
       },
     });
 
-    console.log('Created checkout session:', session.id); // Debug log
     return NextResponse.json({ url: session.url });
   } catch (error) {
-    console.error('Error creating checkout session:', error);
+    console.error('Stripe session creation error:', error);
     return NextResponse.json(
       { error: 'Failed to create checkout session' },
       { status: 500 }

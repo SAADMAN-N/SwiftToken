@@ -20,6 +20,15 @@ export async function getUserCredits(walletAddress: string) {
 }
 
 export async function deductCredit(walletAddress: string) {
+  const user = await prisma.user.findUnique({
+    where: { walletAddress },
+    select: { credits: true },
+  });
+
+  if (!user || user.credits < 1) {
+    throw new Error('Insufficient credits');
+  }
+
   return await prisma.user.update({
     where: { walletAddress },
     data: {

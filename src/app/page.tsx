@@ -5,6 +5,7 @@ import { MemeTokenMetadata } from '@/types/memecoin';
 import { MemecoinCard } from './components/cards/MemecoinCard';
 import { LoadingCard } from './components/cards/LoadingCard';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { TokenGenerationPrompt } from '@/types/generation';
 
 const GENERATION_PRICE_SOL = 0.01;
 
@@ -25,10 +26,37 @@ export default function GeneratorPage() {
     setError(null);
     
     try {
-      // First verify payment
-      // TODO: Implement payment verification
+      // Create generation prompt
+      const prompt: TokenGenerationPrompt = {
+        theme: "current memes",
+        style: "viral",
+        keywords: ["crypto", "viral", "moon"],
+        walletAddress: publicKey.toString() // Make sure to include wallet address
+      };
+
+      // Updated API endpoint
+      const response = await fetch('/api/tokens/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(prompt),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Generation failed');
+      }
+
+      const data = await response.json();
+      
+      if ('error' in data) {
+        throw new Error(data.error);
+      }
+
+      setResult(data);
     } catch (err) {
-      setError('Generation failed. Please try again.');
+      setError(err instanceof Error ? err.message : 'Generation failed');
       console.error('Generation error:', err);
     } finally {
       setLoading(false);

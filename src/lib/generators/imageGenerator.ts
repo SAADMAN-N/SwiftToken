@@ -12,20 +12,11 @@ export async function generateTokenImage(token: MemeTokenMetadata): Promise<stri
       messages: [
         {
           role: "system",
-          content: `You are an expert at creating detailed image prompts for Imagen-3. Create prompts that:
-- Use professional photography style elements
-- Include specific art direction like "digital art", "3D render", or "cartoon style"
-- Emphasize high quality details like "4k", "detailed", "professional lighting"
-`
+          content: "Create short, focused prompts for crypto coin images. Keep it under 3 sentences. avoid using political names as they get flagged as unsafe, if you dont have any options or all options have politics, then make celebrity memecoins e.g. Elon Musk became broke (this is a meme), PEPE memes, DOGE memes etc. mAKE SURE YOU DONT MAKE A PROMPT THAT contains sensitive words that violate Google's Responsible AI practices"
         },
         {
           role: "user",
-          content: `Create a prompt for a crypto memecoin image silimar to DOGE coin or PEPE coin based on this concept: ${token.description}. 
-Focus on:
-- main subject stays in the middle like a portrait picture
-- Simple, clean backgrounds
-- Professional lighting and composition
-- Avoid any text or logos`
+          content: `Create a simple crypto coin image prompt based on: ${token.description}. Make it a centered portrait shot, 4k quality, digital art style.`
         }
       ]
     });
@@ -35,7 +26,7 @@ Focus on:
       throw new Error('Failed to generate image prompt');
     }
 
-    console.log('Generated image prompt:', imagePrompt); // Add this for debugging
+    console.log('Generated image prompt:', imagePrompt);
 
     // Generate image using predictions API
     const imageUrl = await generateImage({ prompt: imagePrompt });
