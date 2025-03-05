@@ -8,6 +8,13 @@ const envSchema = z.object({
   NEXT_PUBLIC_FREE_GENERATIONS_PER_USER: z.string().transform(Number),
   NEXT_PUBLIC_PAID_PRICE_SOL: z.string().transform(Number),
   NEXT_PUBLIC_BULK_PRICE_SOL: z.string().transform(Number),
+  // New API keys validation
+  NEWS_API_KEY: z.string().min(1),
+  TWITTER_API_KEY: z.string().min(1),
+  TWITTER_API_SECRET: z.string().min(1),
+  TWITTER_BEARER_TOKEN: z.string().min(1),
+  TWITTER_ACCESS_TOKEN: z.string().min(1),
+  TWITTER_ACCESS_TOKEN_SECRET: z.string().min(1),
 });
 
 export function validateEnv() {

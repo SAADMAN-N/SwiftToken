@@ -1,14 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'picsum.photos',
-        port: '',
-        pathname: '/**',
-      },
+    domains: [
+      'example.com',
+      'replicate.delivery',
+      'i.imgur.com',
+      'raw.githubusercontent.com'
     ],
+  },
+  experimental: {
+    serverActions: true,
   },
 }
 
