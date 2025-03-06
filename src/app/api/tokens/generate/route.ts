@@ -27,15 +27,15 @@ export async function POST(request: Request) {
     const body = await request.json();
     const validated = generateSchema.parse(body);
     
-    // Set a timeout promise
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Generation timeout')), 55000); // 55 seconds to allow for response time
-    });
+    // Shorter timeout for individual operations
+    const OPERATION_TIMEOUT = 25000; // 25 seconds per operation
+    const TOTAL_TIMEOUT = 50000;     // 50 seconds total
 
-    // User validation
-    const user = await prisma.user.findUnique({
-      where: { walletAddress: validated.walletAddress }
-    });
+    // User validation with timeout
+    const user = await Promise.race([
+      prisma.user.findUnique({ where: { walletAddress: validated.walletAddress } }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('DB timeout')), 5000))
+    ]);
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -45,49 +45,49 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Insufficient credits' }, { status: 402 });
     }
 
-    // Run generation with timeout
-    const generationPromise = (async () => {
-      // Generate token first (usually faster)
-      const tokenResult = await generateTokenIdea({
-        theme: validated.theme,
-        style: validated.style,
-        targetAudience: validated.targetAudience
-      });
+    // Start both generations in parallel with individual timeouts
+    const [tokenPromise, imagePromise] = await Promise.all([
+      Promise.race([
+        generateTokenIdea({
+          theme: validated.theme,
+          style: validated.style,
+          targetAudience: validated.targetAudience
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Token generation timeout')), OPERATION_TIMEOUT))
+      ]),
+      Promise.race([
+        generateTokenImage({
+          name: "Temporary",
+          symbol: "TEMP",
+          description: validated.theme || "A creative crypto meme",
+          imageUrl: "",
+          attributes: { memeScore: 0, viralPotential: 0, uniqueness: 0 },
+          fastMode: true
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Image generation timeout')), OPERATION_TIMEOUT))
+      ])
+    ]).catch(error => {
+      throw new Error(`Generation failed: ${error.message}`);
+    });
 
-      if ('error' in tokenResult) {
-        throw new Error(tokenResult.error);
-      }
+    if (!tokenPromise || !imagePromise) {
+      throw new Error('Generation incomplete');
+    }
 
-      // Generate image with reduced parameters for speed
-      const imageUrl = await generateTokenImage({
-        ...tokenResult,
-        fastMode: true // Add this parameter to your image generator
-      });
+    // Quick credit deduction
+    const updatedUser = await CreditService.deductCredits(validated.walletAddress);
 
-      if (!imageUrl) {
-        throw new Error('Image generation failed');
-      }
-
-      // Deduct credits only after successful generation
-      const updatedUser = await CreditService.deductCredits(validated.walletAddress);
-
-      return {
-        ...tokenResult,
-        imageUrl,
-        remainingCredits: updatedUser.credits
-      };
-    })();
-
-    // Race between timeout and generation
-    const result = await Promise.race([generationPromise, timeoutPromise]);
-    return NextResponse.json(result);
+    return NextResponse.json({
+      ...tokenPromise,
+      imageUrl: imagePromise,
+      remainingCredits: updatedUser.credits
+    });
 
   } catch (error) {
     logger.error(`Error in token generation request ${requestId}:`, error);
     
-    // Handle specific error types
     if (error instanceof Error) {
-      if (error.message === 'Generation timeout') {
+      if (error.message.includes('timeout')) {
         return NextResponse.json(
           { error: 'Generation timed out. Please try again.' },
           { status: 504 }
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Token generation failed' },
+      { error: 'Token generation failed' },
       { status: 500 }
     );
   }

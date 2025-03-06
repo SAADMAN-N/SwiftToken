@@ -16,21 +16,17 @@ const FALLBACK_PROMPTS = [
 
 export async function generateTokenImage(token: MemeTokenMetadata & { fastMode?: boolean }): Promise<string | null> {
   try {
-    // Simplified prompt generation for speed
-    const imagePrompt = token.fastMode 
-      ? `${token.description}, digital art style, centered, 4k quality`
-      : await generateDetailedPrompt(token);
+    // Ultra-fast mode settings
+    const imagePrompt = `${token.description}, digital art style, centered, 4k quality`;
 
-    // Generate image with optimized parameters for speed
+    // Generate image with minimum viable parameters
     const imageUrl = await generateImage({ 
       prompt: imagePrompt,
-      ...(token.fastMode && {
-        config: {
-          num_inference_steps: 30, // Reduced from 50
-          guidance_scale: 7.0,     // Slightly reduced from 7.5
-          prompt_strength: 0.7     // Reduced from 0.8
-        }
-      })
+      config: {
+        num_inference_steps: 20,    // Minimum steps
+        guidance_scale: 6.5,        // Lower guidance for faster generation
+        prompt_strength: 0.6,       // Lower strength for faster generation
+      }
     });
 
     return imageUrl;
