@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { createCreditPurchaseTransaction } from '@/lib/solana/transactions';
+import { createCreditPurchaseTransaction, confirmTransaction } from '@/lib/solana/transactions';
 
 const CREDIT_PACKAGES = [
   { credits: 1, price: 0.01 },
@@ -27,25 +27,25 @@ export function PurchaseCredits() {
     setError(null);
 
     try {
-      console.log('Creating transaction...'); // Debug log
+      console.log('Creating transaction...');
       const transaction = await createCreditPurchaseTransaction(
         connection,
         publicKey,
         price
       );
 
-      console.log('Sending transaction...'); // Debug log
+      console.log('Sending transaction...');
       const signature = await sendTransaction(transaction, connection);
-      console.log('Transaction sent:', signature); // Debug log
+      console.log('Transaction sent:', signature);
 
-      console.log('Waiting for confirmation...'); // Debug log
-      const confirmation = await connection.confirmTransaction(signature);
+      console.log('Waiting for confirmation...');
+      const confirmed = await confirmTransaction(connection, signature);
       
-      if (confirmation.value.err) {
-        throw new Error('Transaction failed');
+      if (!confirmed) {
+        throw new Error('Transaction failed to confirm');
       }
 
-      console.log('Transaction confirmed, updating credits...'); // Debug log
+      console.log('Transaction confirmed, updating credits...');
       const response = await fetch('/api/credits/purchase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -66,7 +66,11 @@ export function PurchaseCredits() {
       window.location.reload();
     } catch (err) {
       console.error('Purchase error:', err);
-      setError(err instanceof Error ? err.message : 'Purchase failed. Please try again.');
+      if (err instanceof Error && err.message.includes('Transaction was not confirmed')) {
+        setError('Transaction taking longer than expected. Please check your wallet or Solana Explorer for confirmation.');
+      } else {
+        setError(err instanceof Error ? err.message : 'Purchase failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
