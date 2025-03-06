@@ -29,11 +29,14 @@ export function WalletConnect() {
           });
           
           if (!response.ok) {
-            const data = await response.json();
-            console.error('Failed to create user:', data.error);
+            throw new Error(`HTTP error! status: ${response.status}`);
           }
+          
+          const data = await response.json();
+          console.log('User created/found:', data);
         } catch (error) {
           console.error('Error creating user:', error);
+          // Optionally show error to user via toast/alert
         }
       }
     };

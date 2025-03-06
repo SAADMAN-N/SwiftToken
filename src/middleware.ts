@@ -9,11 +9,24 @@ export function middleware(request: NextRequest) {
   const allowedOrigins = [
     'https://swifttoken.xyz',
     'https://www.swifttoken.xyz',
-    // Add any other domains you want to allow
+    // Add development URLs if needed
+    'http://localhost:3000',
   ];
 
   // Check if the origin is allowed
   const isAllowedOrigin = allowedOrigins.includes(origin);
+
+  // Handle preflight requests
+  if (request.method === 'OPTIONS') {
+    const response = new NextResponse(null, { status: 200 });
+    
+    response.headers.set('Access-Control-Allow-Origin', isAllowedOrigin ? origin : allowedOrigins[0]);
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    response.headers.set('Access-Control-Max-Age', '86400');
+    
+    return response;
+  }
 
   // Get the response
   const response = NextResponse.next();
@@ -21,8 +34,7 @@ export function middleware(request: NextRequest) {
   // Add the CORS headers
   response.headers.set('Access-Control-Allow-Origin', isAllowedOrigin ? origin : allowedOrigins[0]);
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
-  response.headers.set('Access-Control-Max-Age', '86400');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   return response;
 }
