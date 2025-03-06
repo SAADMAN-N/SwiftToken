@@ -22,71 +22,84 @@ export async function POST(request: Request) {
     const body = await request.json();
     const validated = generateSchema.parse(body);
     
-    // 1. Verify and deduct credits FIRST
-    let updatedUser;
-    try {
-      updatedUser = await CreditService.deductCredits(validated.walletAddress);
-      logger.info(`Credits deducted successfully for request ${requestId}`);
-    } catch (error) {
-      logger.error(`Credit deduction failed for request ${requestId}:`, error);
+    // 1. Check if user exists and has credits
+    const user = await prisma.user.findUnique({
+      where: { walletAddress: validated.walletAddress }
+    });
+
+    if (!user) {
       return NextResponse.json(
-        { error: error instanceof Error ? error.message : 'Credit deduction failed' },
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    if (user.credits < 1) {
+      return NextResponse.json(
+        { error: 'Insufficient credits' },
         { status: 402 }
       );
     }
 
-    // 2. Generate token
-    logger.info(`Starting token generation for request ${requestId}`);
+    // 2. Deduct credits FIRST
+    const updatedUser = await CreditService.deductCredits(validated.walletAddress);
+    logger.info(`Credits deducted successfully for request ${requestId}`);
+
+    // 3. Generate token
     const tokenResult = await generateTokenIdea({
       theme: validated.theme,
       style: validated.style,
-      targetAudience: validated.targetAudience,
-      walletAddress: validated.walletAddress
+      targetAudience: validated.targetAudience
     });
 
     if ('error' in tokenResult) {
-      logger.error(`Token generation failed for request ${requestId}:`, tokenResult.error);
-      // If generation fails, we should refund the credit
-      await CreditService.addCredits(validated.walletAddress, 1, requestId, 0, 'solana');
-      return NextResponse.json({ error: tokenResult.error }, { status: 500 });
+      // Refund the credit since generation failed
+      await CreditService.addCredits(validated.walletAddress, 1);
+      return NextResponse.json(
+        { error: tokenResult.error },
+        { status: 500 }
+      );
     }
 
-    // 3. Generate image
-    logger.info(`Starting image generation for request ${requestId}`);
+    // 4. Generate image
     const imageUrl = await generateTokenImage(tokenResult);
     if (!imageUrl) {
-      logger.error(`Image generation failed for request ${requestId}`);
-      // If image generation fails, we should refund the credit
-      await CreditService.addCredits(validated.walletAddress, 1, requestId, 0, 'solana');
-      return NextResponse.json({ error: 'Image generation failed' }, { status: 500 });
+      // Refund the credit since image generation failed
+      await CreditService.addCredits(validated.walletAddress, 1);
+      return NextResponse.json(
+        { error: 'Image generation failed' },
+        { status: 500 }
+      );
     }
 
-    // 4. Record successful generation
-    const generation = await prisma.generation.create({
+    // 5. Save the generated token
+    await prisma.generatedToken.create({
       data: {
-        user: { connect: { id: updatedUser.id } },
-        requestId: requestId,
-        tokenName: tokenResult.name,
-        tokenSymbol: tokenResult.symbol,
+        userId: user.id,
+        name: tokenResult.name,
+        symbol: tokenResult.symbol,
+        description: tokenResult.description,
         imageUrl: imageUrl,
-        status: 'completed'
+        attributes: tokenResult.attributes as any
       }
     });
 
-    logger.info(`Token generation completed successfully for request ${requestId}`);
-
-    // 5. Return success response with remaining credits
+    // 6. Return success response
     return NextResponse.json({
-      requestId,
       ...tokenResult,
       imageUrl,
       remainingCredits: updatedUser.credits
     });
 
   } catch (error) {
-    logger.error(`Unexpected error in token generation request ${requestId}:`, error);
+    logger.error(`Error in token generation request ${requestId}:`, error);
+    
+    // Ensure we always return a proper JSON response
     return NextResponse.json(
-      { error: 'Token generation failed' },
+      { 
+        error: error instanceof Error ? error.message : 'Token generation failed',
+        requestId 
+      },
       { status: 500 }
     );
   }

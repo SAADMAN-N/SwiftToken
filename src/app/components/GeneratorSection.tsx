@@ -36,12 +36,12 @@ export function GeneratorSection() {
         }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Generation failed');
+        throw new Error(data.error || 'Generation failed');
       }
 
-      const data = await response.json();
       setMemeToken(data);
       await refetchCredits();
       
