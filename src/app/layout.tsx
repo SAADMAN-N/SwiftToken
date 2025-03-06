@@ -4,6 +4,7 @@ import { ComingSoonBanner } from "./components/ComingSoonBanner";
 import "./globals.css";
 import { ClientProvider } from '@/providers/ClientProvider';
 import { ClientWalletProvider } from '@/providers/WalletProvider';
+import { Analytics } from '@vercel/analytics/react';
 import { metadata } from './metadata';
 
 const inter = Inter({
@@ -29,7 +30,7 @@ export default function RootLayout({
             <main className="flex-1">
               {children}
             </main>
-            <ComingSoonBanner />
+            <Analytics />
           </ClientProvider>
         </ClientWalletProvider>
       </body>
