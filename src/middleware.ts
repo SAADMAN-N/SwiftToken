@@ -5,6 +5,11 @@ import { logger } from '@/lib/logger';
 const REQUESTS_PER_MINUTE = 60;
 const rateLimit = new Map<string, { count: number; timestamp: number }>();
 
+const ALLOWED_ORIGINS = [
+  'https://swifttoken.xyz',
+  // Add any other allowed origins here
+];
+
 export function middleware(request: NextRequest) {
   // Skip rate limiting for non-API routes
   if (!request.nextUrl.pathname.startsWith('/api')) {

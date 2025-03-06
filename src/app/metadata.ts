@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://swifttoken.netlify.app'),
+  metadataBase: new URL('https://swifttoken.xyz'),
   title: {
     default: "SwiftToken - AI Memecoin Generator | Create Your Own Memecoin",
     template: "%s | SwiftToken"
@@ -89,7 +89,7 @@ export const metadata: Metadata = {
     title: "SwiftToken - AI Memecoin Generator",
     description: "Generate viral memecoins instantly with AI. Create and launch your next memecoin token on Solana.",
     type: "website",
-    url: '/',
+    url: 'https://swifttoken.xyz',
     siteName: "SwiftToken",
     locale: "en_US",
     images: [

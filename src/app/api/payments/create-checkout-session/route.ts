@@ -31,8 +31,8 @@ export async function POST(request: Request) {
         },
       ],
       mode: 'payment',
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/credits?success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/credits?canceled=true`,
+      success_url: `https://swifttoken.xyz/credits?success=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `https://swifttoken.xyz/credits?canceled=true`,
       metadata: {
         walletAddress,
         credits: credits.toString(),

@@ -6,6 +6,6 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: '*',
       allow: '/',
     },
-    sitemap: 'https://swifttoken.netlify.app/sitemap.xml',
+    sitemap: 'https://swifttoken.xyz/sitemap.xml',
   }
 }

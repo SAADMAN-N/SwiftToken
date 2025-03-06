@@ -25,7 +25,7 @@ export function StripePurchaseCredits() {
     setError(null);
 
     try {
-      const response = await fetch('/api/payments/create-checkout-session', {
+      const response = await fetch('https://swifttoken.xyz/api/payments/create-checkout-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
