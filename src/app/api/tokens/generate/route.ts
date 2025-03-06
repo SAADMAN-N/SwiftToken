@@ -6,6 +6,7 @@ import { CreditService } from '@/lib/services/creditService';
 import { logger } from '@/lib/logger';
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
+import { User } from '@prisma/client';
 
 const generateSchema = z.object({
   walletAddress: z.string().min(32).max(44),
@@ -31,11 +32,11 @@ export async function POST(request: Request) {
     const OPERATION_TIMEOUT = 25000; // 25 seconds per operation
     const TOTAL_TIMEOUT = 50000;     // 50 seconds total
 
-    // User validation with timeout
-    const user = await Promise.race([
-      prisma.user.findUnique({ where: { walletAddress: validated.walletAddress } }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('DB timeout')), 5000))
-    ]);
+    // User validation with type annotation
+    const user = await prisma.user.findUnique({
+      where: { walletAddress: validated.walletAddress },
+      select: { id: true, credits: true }
+    });
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
