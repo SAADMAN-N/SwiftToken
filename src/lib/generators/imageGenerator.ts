@@ -14,63 +14,63 @@ const FALLBACK_PROMPTS = [
   "A space astronaut doge holding a cryptocurrency wallet, digital art style, centered portrait shot, 4k quality"
 ];
 
-export async function generateTokenImage(token: MemeTokenMetadata): Promise<string | null> {
+export async function generateTokenImage(token: MemeTokenMetadata & { fastMode?: boolean }): Promise<string | null> {
   try {
-    // Try getting a prompt from GPT-4
-    try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4",
-        messages: [
-          {
-            role: "system",
-            content: "Create short, focused prompts for crypto coin images. Keep it under 3 sentences. avoid using political names as they get flagged as unsafe, if you dont have any options or all options have politics, then make celebrity memecoins e.g. Elon Musk became broke (this is a meme), PEPE memes, DOGE memes etc. mAKE SURE YOU DONT MAKE A PROMPT THAT contains sensitive words that violate Google's Responsible AI practices"
-          },
-          {
-            role: "user",
-            content: `Create a simple crypto coin image prompt based on: ${token.description}. Make it a centered portrait shot, 4k quality, digital art style.`
-          }
-        ]
-      });
+    // Simplified prompt generation for speed
+    const imagePrompt = token.fastMode 
+      ? `${token.description}, digital art style, centered, 4k quality`
+      : await generateDetailedPrompt(token);
 
-      const imagePrompt = completion.choices[0].message.content;
-      if (!imagePrompt) {
-        throw new Error('Failed to generate image prompt');
-      }
-
-      console.log('Generated image prompt:', imagePrompt);
-
-      // Generate image using predictions API
-      const imageUrl = await generateImage({ prompt: imagePrompt });
-      if (!imageUrl) {
-        throw new Error('Failed to generate image');
-      }
-
-      return imageUrl;
-
-    } catch (error) {
-      // If OpenAI fails (quota/rate limit), use fallback prompts
-      if (error instanceof Error && 
-          (error.message.includes('429') || error.message.includes('quota'))) {
-        console.log('OpenAI quota exceeded, using fallback prompt');
-        
-        // Select a random fallback prompt
-        const fallbackPrompt = FALLBACK_PROMPTS[Math.floor(Math.random() * FALLBACK_PROMPTS.length)];
-        console.log('Using fallback prompt:', fallbackPrompt);
-
-        // Generate image with fallback prompt
-        const imageUrl = await generateImage({ prompt: fallbackPrompt });
-        if (!imageUrl) {
-          throw new Error('Failed to generate image with fallback prompt');
+    // Generate image with optimized parameters for speed
+    const imageUrl = await generateImage({ 
+      prompt: imagePrompt,
+      ...(token.fastMode && {
+        config: {
+          num_inference_steps: 30, // Reduced from 50
+          guidance_scale: 7.0,     // Slightly reduced from 7.5
+          prompt_strength: 0.7     // Reduced from 0.8
         }
+      })
+    });
 
-        return imageUrl;
-      }
-      
-      throw error; // Re-throw if it's not a quota error
-    }
+    return imageUrl;
 
   } catch (error) {
-    console.error('Image generation failed:', error);
+    console.error('Image generation error:', error);
     return null;
+  }
+}
+
+async function generateDetailedPrompt(token: MemeTokenMetadata): Promise<string> {
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [
+        {
+          role: "system",
+          content: "Create short, focused prompts for crypto coin images. Keep it under 3 sentences. avoid using political names as they get flagged as unsafe, if you dont have any options or all options have politics, then make celebrity memecoins e.g. Elon Musk became broke (this is a meme), PEPE memes, DOGE memes etc. mAKE SURE YOU DONT MAKE A PROMPT THAT contains sensitive words that violate Google's Responsible AI practices"
+        },
+        {
+          role: "user",
+          content: `Create a simple crypto coin image prompt based on: ${token.description}. Make it a centered portrait shot, 4k quality, digital art style.`
+        }
+      ]
+    });
+
+    const imagePrompt = completion.choices[0].message.content;
+    if (!imagePrompt) {
+      throw new Error('Failed to generate image prompt');
+    }
+
+    console.log('Generated image prompt:', imagePrompt);
+    return imagePrompt;
+
+  } catch (error) {
+    console.log('OpenAI quota exceeded, using fallback prompt');
+    
+    // Select a random fallback prompt
+    const fallbackPrompt = FALLBACK_PROMPTS[Math.floor(Math.random() * FALLBACK_PROMPTS.length)];
+    console.log('Using fallback prompt:', fallbackPrompt);
+    return fallbackPrompt;
   }
 }

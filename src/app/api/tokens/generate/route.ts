@@ -14,6 +14,11 @@ const generateSchema = z.object({
   targetAudience: z.string().optional()
 });
 
+// Set timeout for the API
+export const maxDuration = 60; // 60 seconds
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
   logger.info(`Starting token generation request ${requestId}`);
@@ -22,80 +27,76 @@ export async function POST(request: Request) {
     const body = await request.json();
     const validated = generateSchema.parse(body);
     
-    // 1. Check if user exists and has credits
+    // Set a timeout promise
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Generation timeout')), 55000); // 55 seconds to allow for response time
+    });
+
+    // User validation
     const user = await prisma.user.findUnique({
       where: { walletAddress: validated.walletAddress }
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     if (user.credits < 1) {
-      return NextResponse.json(
-        { error: 'Insufficient credits' },
-        { status: 402 }
-      );
+      return NextResponse.json({ error: 'Insufficient credits' }, { status: 402 });
     }
 
-    // Generate token FIRST
-    const tokenResult = await generateTokenIdea({
-      theme: validated.theme,
-      style: validated.style,
-      targetAudience: validated.targetAudience
-    });
+    // Run generation with timeout
+    const generationPromise = (async () => {
+      // Generate token first (usually faster)
+      const tokenResult = await generateTokenIdea({
+        theme: validated.theme,
+        style: validated.style,
+        targetAudience: validated.targetAudience
+      });
 
-    if ('error' in tokenResult) {
-      return NextResponse.json(
-        { error: tokenResult.error },
-        { status: 500 }
-      );
-    }
-
-    // Generate image SECOND
-    const imageUrl = await generateTokenImage(tokenResult);
-    if (!imageUrl) {
-      return NextResponse.json(
-        { error: 'Image generation failed' },
-        { status: 500 }
-      );
-    }
-
-    // Only deduct credits AFTER successful generation
-    const updatedUser = await CreditService.deductCredits(validated.walletAddress);
-    logger.info(`Credits deducted successfully for request ${requestId}`);
-
-    // Save the generated token
-    await prisma.generation.create({
-      data: {
-        userId: user.id,
-        requestId,
-        tokenName: tokenResult.name,
-        tokenSymbol: tokenResult.symbol,
-        imageUrl: imageUrl,
-        status: 'completed'
+      if ('error' in tokenResult) {
+        throw new Error(tokenResult.error);
       }
-    });
 
-    // Return success response
-    return NextResponse.json({
-      ...tokenResult,
-      imageUrl,
-      remainingCredits: updatedUser.credits
-    });
+      // Generate image with reduced parameters for speed
+      const imageUrl = await generateTokenImage({
+        ...tokenResult,
+        fastMode: true // Add this parameter to your image generator
+      });
+
+      if (!imageUrl) {
+        throw new Error('Image generation failed');
+      }
+
+      // Deduct credits only after successful generation
+      const updatedUser = await CreditService.deductCredits(validated.walletAddress);
+
+      return {
+        ...tokenResult,
+        imageUrl,
+        remainingCredits: updatedUser.credits
+      };
+    })();
+
+    // Race between timeout and generation
+    const result = await Promise.race([generationPromise, timeoutPromise]);
+    return NextResponse.json(result);
 
   } catch (error) {
     logger.error(`Error in token generation request ${requestId}:`, error);
     
-    // Ensure we always return a proper JSON response
+    // Handle specific error types
+    if (error instanceof Error) {
+      if (error.message === 'Generation timeout') {
+        return NextResponse.json(
+          { error: 'Generation timed out. Please try again.' },
+          { status: 504 }
+        );
+      }
+    }
+
     return NextResponse.json(
-      { 
-        error: error instanceof Error ? error.message : 'Token generation failed',
-        requestId 
-      },
+      { error: error instanceof Error ? error.message : 'Token generation failed' },
       { status: 500 }
     );
   }

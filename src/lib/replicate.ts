@@ -47,6 +47,11 @@ export async function checkReplicateConnection(): Promise<{
 
 export interface ImagenConfig {
   prompt: string;
+  config?: {
+    num_inference_steps?: number;
+    guidance_scale?: number;
+    prompt_strength?: number;
+  };
 }
 
 export async function generateImage(config: ImagenConfig): Promise<string | null> {
@@ -58,12 +63,14 @@ export async function generateImage(config: ImagenConfig): Promise<string | null
   }
 
   try {
-    // Create prediction with Image-01
     const prediction = await replicate.predictions.create({
       model: IMAGE_MODEL,
       input: {
         prompt: config.prompt,
-        aspect_ratio: "1:1" // Using 1:1 for consistent token images
+        num_inference_steps: config.config?.num_inference_steps ?? 50,
+        guidance_scale: config.config?.guidance_scale ?? 7.5,
+        prompt_strength: config.config?.prompt_strength ?? 0.8,
+        aspect_ratio: "1:1"
       }
     });
 
