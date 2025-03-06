@@ -62,8 +62,7 @@ export async function POST(request: Request) {
           symbol: "TEMP",
           description: validated.theme || "A creative crypto meme",
           imageUrl: "",
-          attributes: { memeScore: 0, viralPotential: 0, uniqueness: 0 },
-          fastMode: true
+          attributes: { memeScore: 0, viralPotential: 0, uniqueness: 0 }
         }),
         new Promise((_, reject) => setTimeout(() => reject(new Error('Image generation timeout')), OPERATION_TIMEOUT))
       ])
