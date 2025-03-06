@@ -51,7 +51,7 @@ export async function checkReplicateConnection(): Promise<ReplicateStatus> {
 export async function generateImage(config: ImagenConfig): Promise<string | null> {
   try {
     // Enhance prompt for better memecoin results
-    const enhancedPrompt = `Vector art of a crypto memecoin: ${config.prompt}, centered composition, vibrant colors, clean edges, perfect for token logo`;
+    const enhancedPrompt = `Generate a crypto memecoin image based on the following prompt: ${config.prompt}, centered composition, vibrant colors, clean edges, perfect for token logo`;
 
     const prediction = await replicate.run(IMAGE_MODEL, {
       input: {
