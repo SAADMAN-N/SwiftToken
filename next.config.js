@@ -18,6 +18,11 @@ const nextConfig = {
   experimental: {
     serverActions: true,
   },
+  // Add this to enable reading directory contents
+  webpack: (config) => {
+    config.resolve.fallback = { fs: false };
+    return config;
+  },
 }
 
 module.exports = nextConfig

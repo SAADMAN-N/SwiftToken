@@ -8,8 +8,8 @@ const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN,
 });
 
-// Constants for the Imagen model
-const IMAGEN_MODEL = "google/imagen-3";
+// Constants for the Image-01 model
+const IMAGE_MODEL = "minimax/image-01";
 
 export async function checkReplicateConnection(): Promise<{ 
   isValid: boolean; 
@@ -17,16 +17,12 @@ export async function checkReplicateConnection(): Promise<{
   timestamp?: string;
 }> {
   try {
-    // Create a simple test prediction to verify the API key
+    // Create a simple test prediction
     const prediction = await replicate.predictions.create({
-      model: IMAGEN_MODEL,
+      model: IMAGE_MODEL,
       input: {
         prompt: "test image",
-        width: 1024,
-        height: 1024,
-        num_outputs: 1,
-        guidance_scale: 7.5,
-        steps: 50
+        aspect_ratio: "1:1"
       }
     });
 
@@ -62,16 +58,12 @@ export async function generateImage(config: ImagenConfig): Promise<string | null
   }
 
   try {
-    // Create prediction with Imagen-3
+    // Create prediction with Image-01
     const prediction = await replicate.predictions.create({
-      model: IMAGEN_MODEL,
+      model: IMAGE_MODEL,
       input: {
         prompt: config.prompt,
-        width: 1024,
-        height: 1024,
-        num_outputs: 1,
-        guidance_scale: 7.5,
-        steps: 50
+        aspect_ratio: "1:1" // Using 1:1 for consistent token images
       }
     });
 
@@ -91,7 +83,7 @@ export async function generateImage(config: ImagenConfig): Promise<string | null
       throw new Error(`Prediction failed: ${result.error}`);
     }
 
-    // Handle both array and string output formats
+    // Handle the output format
     if (result.output) {
       if (Array.isArray(result.output)) {
         return result.output[0];
@@ -111,16 +103,13 @@ export async function generateImage(config: ImagenConfig): Promise<string | null
   }
 }
 
-// Optional: Add a function to handle webhook-based generation if needed
+// Optional: Update webhook function for Image-01
 export async function generateImageWithWebhook(config: ImagenConfig, webhookUrl: string): Promise<string> {
   const prediction = await replicate.predictions.create({
-    model: "google/imagen-3",
+    model: IMAGE_MODEL,
     input: {
       prompt: config.prompt,
-      num_outputs: 1,
-      scheduler: "K_EULER",
-      num_inference_steps: 50,
-      guidance_scale: 7.5
+      aspect_ratio: "1:1"
     },
     webhook: webhookUrl,
     webhook_events_filter: ["completed"]

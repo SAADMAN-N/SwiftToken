@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 
 export function useCredits() {
@@ -7,7 +7,7 @@ export function useCredits() {
   const [error, setError] = useState<string | null>(null);
   const { connected, publicKey } = useWallet();
 
-  const fetchCredits = async () => {
+  const fetchCredits = useCallback(async () => {
     if (!connected || !publicKey) {
       setCredits(null);
       return;
@@ -17,7 +17,14 @@ export function useCredits() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/credits?wallet=${publicKey.toString()}`);
+      const response = await fetch(`/api/credits?wallet=${publicKey.toString()}`, {
+        // Prevent caching
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
       if (!response.ok) throw new Error('Failed to fetch credits');
       
       const data = await response.json();
@@ -28,16 +35,20 @@ export function useCredits() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [connected, publicKey]);
 
   useEffect(() => {
     fetchCredits();
-  }, [connected, publicKey]);
+  }, [fetchCredits]);
+
+  const refetch = useCallback(async () => {
+    await fetchCredits();
+  }, [fetchCredits]);
 
   return {
     credits,
     loading,
     error,
-    refetch: fetchCredits
+    refetch
   };
 }

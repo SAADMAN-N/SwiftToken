@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import Stripe from 'stripe';
-import { prisma } from '@/lib/db';
+import { CreditService } from '@/lib/services/creditService';
+import { logger } from '@/lib/logger';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-02-24.acacia'
@@ -11,7 +12,7 @@ const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 export async function POST(request: Request) {
   try {
-    console.log('==================== WEBHOOK START ====================');
+    logger.info('==================== WEBHOOK START ====================');
     
     const body = await request.text();
     const sig = headers().get('stripe-signature');
@@ -20,75 +21,67 @@ export async function POST(request: Request) {
 
     try {
       event = stripe.webhooks.constructEvent(body, sig!, endpointSecret);
-      console.log('Event Type:', event.type);
+      logger.info('Event Type:', event.type);
     } catch (err) {
-      console.error('Signature verification failed:', err);
+      logger.error('Signature verification failed:', err);
       return NextResponse.json({ error: 'Webhook signature verification failed' }, { status: 400 });
     }
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session;
       
-      // Detailed session logging
-      console.log('Full Session Data:', JSON.stringify(session, null, 2));
+      logger.info('Processing completed checkout session:', session.id);
       
       try {
         const walletAddress = session.metadata?.walletAddress;
         const credits = parseInt(session.metadata?.credits || '0');
         
-        console.log('Processing payment for:', { walletAddress, credits });
+        logger.info('Processing payment for:', { walletAddress, credits });
 
         if (!walletAddress || !credits) {
           throw new Error(`Missing required metadata. Wallet: ${walletAddress}, Credits: ${credits}`);
         }
 
-        // First create/update user
-        console.log('Creating/updating user...');
-        const user = await prisma.user.upsert({
-          where: { walletAddress },
-          create: {
-            walletAddress,
-            credits: credits,
-          },
-          update: {
-            credits: { increment: credits },
-          },
-        });
-        console.log('User created/updated:', user);
+        // Use CreditService to handle credit addition
+        const updatedUser = await CreditService.addCredits(
+          walletAddress,
+          credits,
+          session.payment_intent as string,
+          (session.amount_total || 0) / 100,
+          'stripe'
+        );
 
-        // Then create transaction
-        console.log('Creating transaction...');
-        const transaction = await prisma.transaction.create({
-          data: {
-            userId: user.id,
-            signature: session.payment_intent as string,
-            amount: (session.amount_total || 0) / 100,
-            credits: credits,
-            status: 'confirmed',
-            paymentMethod: 'stripe',
-            confirmedAt: new Date(),
-          },
+        logger.info('Credits added successfully:', {
+          walletAddress,
+          credits,
+          newBalance: updatedUser.credits
         });
-        console.log('Transaction created:', transaction);
 
       } catch (error) {
-        console.error('Detailed error:', {
-          name: error instanceof Error ? error.name : 'Unknown',
-          message: error instanceof Error ? error.message : 'Unknown error occurred',
-          stack: error instanceof Error ? error.stack : 'No stack trace'
+        logger.error('Failed to process payment:', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          session: session.id,
+          metadata: session.metadata
         });
-        throw error;
+        
+        // Important: Return 200 even on processing error to prevent Stripe retries
+        return NextResponse.json({
+          error: 'Payment processed but credit allocation failed',
+          success: false
+        });
       }
     }
 
-    console.log('==================== WEBHOOK END ====================');
+    logger.info('==================== WEBHOOK END ====================');
     return NextResponse.json({ received: true });
+    
   } catch (error) {
-    console.error('Top level error:', {
+    logger.error('Webhook handler error:', {
       name: error instanceof Error ? error.name : 'Unknown',
       message: error instanceof Error ? error.message : 'Unknown error occurred',
       stack: error instanceof Error ? error.stack : 'No stack trace'
     });
+    
     return NextResponse.json(
       { 
         error: 'Internal server error', 

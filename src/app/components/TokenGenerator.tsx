@@ -8,6 +8,7 @@ import { MemeTokenMetadata } from '@/types/memecoin';
 export function TokenGenerator() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<MemeTokenMetadata | null>(null);
   const { publicKey } = useWallet();
   const { credits, refetch: refetchCredits } = useCredits();
 
@@ -32,23 +33,21 @@ export function TokenGenerator() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          walletAddress: publicKey.toString(), // THIS WAS MISSING
-          theme: "current memes",
-          style: "viral"
+          walletAddress: publicKey.toString(),
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate token');
+        throw new Error(errorData.error || 'Generation failed');
       }
 
-      const result = await response.json();
+      const data = await response.json();
       
-      // Refresh credits after successful generation
+      // Immediately refresh credits after successful generation
       await refetchCredits();
       
-      return result;
+      setResult(data);
     } catch (err) {
       console.error('Generation error:', err);
       setError(err instanceof Error ? err.message : 'Generation failed');
@@ -57,5 +56,5 @@ export function TokenGenerator() {
     }
   };
 
-  // ... rest of the component
+  // ... rest of the component code
 }

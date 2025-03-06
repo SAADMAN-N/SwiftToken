@@ -1,115 +1,85 @@
-'use client';
+import Image from 'next/image';
+import fs from 'fs';
+import path from 'path';
+import { GeneratorSection } from './components/GeneratorSection';
 
-import { useState } from 'react';
-import { MemeTokenMetadata } from '@/types/memecoin';
-import { MemecoinCard } from './components/cards/MemecoinCard';
-import { LoadingCard } from './components/cards/LoadingCard';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { TokenGenerationPrompt } from '@/types/generation';
-
-const GENERATION_PRICE_SOL = 0.01;
+// Get all images from the showcase folder
+const showcaseDir = path.join(process.cwd(), 'public', 'showcase');
+const showcaseImages = fs.readdirSync(showcaseDir)
+  .filter(file => /\.(jpg|jpeg|png|gif)$/i.test(file))
+  .map(file => ({
+    url: `/showcase/${file}`,
+    title: file.split('.')[0].replace(/-/g, ' ').toUpperCase()
+  }));
 
 export default function GeneratorPage() {
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<MemeTokenMetadata | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  
-  const { connected, publicKey } = useWallet();
-
-  const generateToken = async () => {
-    if (!connected || !publicKey) {
-      setError('Please connect your wallet first');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // Create generation prompt
-      const prompt: TokenGenerationPrompt = {
-        theme: "current memes",
-        style: "viral",
-        keywords: ["crypto", "viral", "moon"],
-        walletAddress: publicKey.toString() // Make sure to include wallet address
-      };
-
-      // Updated API endpoint
-      const response = await fetch('/api/tokens/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(prompt),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Generation failed');
-      }
-
-      const data = await response.json();
-      
-      if ('error' in data) {
-        throw new Error(data.error);
-      }
-
-      setResult(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Generation failed');
-      console.error('Generation error:', err);
-    } finally {
-      setLoading(false);
-    }
+  // Add JSON-LD structured data
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: 'SwiftToken',
+    description: 'AI-powered memecoin generator for Solana blockchain',
+    applicationCategory: 'Cryptocurrency Tool',
+    operatingSystem: 'Web Browser',
+    offers: {
+      '@type': 'Offer',
+      price: '0.01',
+      priceCurrency: 'SOL',
+    },
+    author: {
+      '@type': 'Organization',
+      name: 'SwiftToken',
+      url: process.env.NEXT_PUBLIC_APP_URL,
+    },
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="max-w-3xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">
-          Generate Your Memecoin
-        </h1>
-        
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                {GENERATION_PRICE_SOL} SOL
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-300">
-                per generation
-              </div>
-            </div>
-            <div className="text-sm text-gray-500">
-              Includes AI-powered name, description, and unique image generation
-            </div>
-          </div>
-          
-          <button
-            onClick={generateToken}
-            className={`w-full font-bold py-3 px-4 rounded-lg transition-colors ${
-              connected 
-                ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
-            disabled={!connected || loading}
-          >
-            {loading ? 'Generating...' : (connected ? 'Generate Memecoin' : 'Connect Wallet to Generate')}
-          </button>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Hero Section */}
+        <div className="text-center mb-16">
+          <h1 className="text-4xl md:text-5xl font-extrabold mb-6 bg-gradient-to-r from-purple-600 to-blue-500 text-transparent bg-clip-text">
+            Create Your Next Viral Memecoin
+          </h1>
+          <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto">
+            Generate stunning memecoin ideas powered by real-time data from Twitter, Reddit, and crypto news! 
+            Let AI help you create the next moonshot! 🚀
+          </p>
+        </div>
 
-          <div className="mt-8">
-            {loading && <LoadingCard />}
-            {result && !loading && (
-              <MemecoinCard token={result} />
-            )}
-            {error && (
-              <div className="text-red-500 text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                {error}
+        {/* Showcase Section */}
+        <div className="mb-16">
+          <h2 className="text-2xl font-bold text-center mb-8">
+            Example Generations
+          </h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            {showcaseImages.map((image) => (
+              <div key={image.url} className="group relative">
+                <div className="aspect-square overflow-hidden rounded-xl shadow-lg transition-transform duration-300 group-hover:scale-105">
+                  <Image
+                    src={image.url}
+                    alt={image.title}
+                    width={400}
+                    height={400}
+                    className="object-cover w-full h-full"
+                    priority
+                  />
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                    <h3 className="text-white font-bold text-lg">{image.title}</h3>
+                  </div>
+                </div>
               </div>
-            )}
+            ))}
           </div>
         </div>
+
+        {/* Generator Section */}
+        <GeneratorSection />
       </div>
-    </div>
+    </>
   );
 }
