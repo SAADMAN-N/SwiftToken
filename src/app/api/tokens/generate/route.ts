@@ -41,11 +41,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Deduct credits FIRST
-    const updatedUser = await CreditService.deductCredits(validated.walletAddress);
-    logger.info(`Credits deducted successfully for request ${requestId}`);
-
-    // 3. Generate token
+    // Generate token FIRST
     const tokenResult = await generateTokenIdea({
       theme: validated.theme,
       style: validated.style,
@@ -53,38 +49,38 @@ export async function POST(request: Request) {
     });
 
     if ('error' in tokenResult) {
-      // Refund the credit since generation failed
-      await CreditService.addCredits(validated.walletAddress, 1);
       return NextResponse.json(
         { error: tokenResult.error },
         { status: 500 }
       );
     }
 
-    // 4. Generate image
+    // Generate image SECOND
     const imageUrl = await generateTokenImage(tokenResult);
     if (!imageUrl) {
-      // Refund the credit since image generation failed
-      await CreditService.addCredits(validated.walletAddress, 1);
       return NextResponse.json(
         { error: 'Image generation failed' },
         { status: 500 }
       );
     }
 
-    // 5. Save the generated token
-    await prisma.generatedToken.create({
+    // Only deduct credits AFTER successful generation
+    const updatedUser = await CreditService.deductCredits(validated.walletAddress);
+    logger.info(`Credits deducted successfully for request ${requestId}`);
+
+    // Save the generated token
+    await prisma.generation.create({
       data: {
         userId: user.id,
-        name: tokenResult.name,
-        symbol: tokenResult.symbol,
-        description: tokenResult.description,
+        requestId,
+        tokenName: tokenResult.name,
+        tokenSymbol: tokenResult.symbol,
         imageUrl: imageUrl,
-        attributes: tokenResult.attributes as any
+        status: 'completed'
       }
     });
 
-    // 6. Return success response
+    // Return success response
     return NextResponse.json({
       ...tokenResult,
       imageUrl,
