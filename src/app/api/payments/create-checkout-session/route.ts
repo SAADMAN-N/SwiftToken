@@ -7,13 +7,23 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-02-24.acacia',  // Updated to match webhook route
+  apiVersion: '2025-02-24.acacia',
 });
+
+// Get the base URL from environment or construct it
+const getBaseUrl = () => {
+  if (process.env.NEXT_PUBLIC_BASE_URL) {
+    return process.env.NEXT_PUBLIC_BASE_URL.replace(/\/$/, '');
+  }
+  return 'https://swifttoken.xyz';
+};
 
 export async function POST(request: Request) {
   try {
     const { credits, amount, walletAddress } = await request.json();
     console.log('Payment attempt:', { credits, amount, walletAddress });
+
+    const baseUrl = getBaseUrl();
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -31,8 +41,8 @@ export async function POST(request: Request) {
         },
       ],
       mode: 'payment',
-      success_url: `https://swifttoken.xyz/credits?success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `https://swifttoken.xyz/credits?canceled=true`,
+      success_url: `${baseUrl}/credits?success=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/credits?canceled=true`,
       metadata: {
         walletAddress,
         credits: credits.toString(),
@@ -47,4 +57,16 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+}
+
+// Add CORS headers
+export async function OPTIONS(request: Request) {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  });
 }
