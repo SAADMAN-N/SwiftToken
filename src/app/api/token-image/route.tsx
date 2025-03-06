@@ -2,10 +2,11 @@ import { ImageResponse } from 'next/og';
 
 export const runtime = 'edge';
 
-export const size = {
+// Move size to a constant instead of exporting it
+const IMAGE_SIZE = {
   width: 1024,
   height: 1024,
-};
+} as const;
 
 const gradients = [
   'linear-gradient(45deg, #FF6B6B, #4ECDC4)',
@@ -133,7 +134,7 @@ export async function POST(request: Request) {
         </div>
       ),
       {
-        ...size,
+        ...IMAGE_SIZE,
         headers: {
           'Content-Type': 'image/png',
           'Cache-Control': 'no-store, must-revalidate',

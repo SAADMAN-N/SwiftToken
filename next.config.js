@@ -15,14 +15,14 @@ const nextConfig = {
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
-  experimental: {
-    serverActions: true,
-  },
-  // Add this to enable reading directory contents
+  // Remove experimental.serverActions as it's now enabled by default
   webpack: (config) => {
     config.resolve.fallback = { fs: false };
     return config;
   },
+  pageExtensions: process.env.NODE_ENV === 'production' 
+    ? ['tsx', 'ts'].filter(ext => !ext.includes('demo'))
+    : ['tsx', 'ts']
 }
 
 module.exports = nextConfig

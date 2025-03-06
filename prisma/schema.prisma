@@ -8,7 +8,7 @@ generator client {
 }
 
 model User {
-  id                 String              @id @default(cuid())
+  id                 String              @id @default(uuid())
   walletAddress      String              @unique
   credits            Int                 @default(1)
   createdAt          DateTime            @default(now())
@@ -19,7 +19,7 @@ model User {
 }
 
 model Generation {
-  id          String   @id @default(cuid())
+  id          String   @id @default(uuid())
   userId      String
   requestId   String   @unique
   tokenName   String
@@ -30,13 +30,11 @@ model Generation {
   user        User     @relation(fields: [userId], references: [id])
 
   @@index([userId])
-  @@index([requestId])
 }
 
 model Transaction {
-  id            String    @id @default(cuid())
+  id            String    @id @default(uuid())
   userId        String
-  user          User      @relation(fields: [userId], references: [id])
   amount        Float
   signature     String    @unique
   status        String
@@ -44,10 +42,13 @@ model Transaction {
   paymentMethod String    @default("solana")
   createdAt     DateTime  @default(now())
   confirmedAt   DateTime?
+  user          User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
 
 model CreditTransaction {
-  id           String   @id @default(cuid())
+  id           String   @id @default(uuid())
   userId       String
   amount       Int
   type         String
@@ -55,7 +56,4 @@ model CreditTransaction {
   description  String?
   createdAt    DateTime @default(now())
   user         User     @relation(fields: [userId], references: [id])
-
-  @@index([userId])
-  @@index([createdAt])
 }

@@ -1,20 +1,19 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { env } from '@/lib/env';
 
-// Add debug logging
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-02-24.acacia'
+if (!process.env.STRIPE_SECRET_KEY) {
+  throw new Error('STRIPE_SECRET_KEY is not configured in environment variables');
+}
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: '2025-02-24.acacia',  // Updated to match webhook route
 });
 
 export async function POST(request: Request) {
   try {
     const { credits, amount, walletAddress } = await request.json();
     console.log('Payment attempt:', { credits, amount, walletAddress });
-
-    if (!process.env.STRIPE_SECRET_KEY) {
-      console.error('Missing STRIPE_SECRET_KEY');
-      return NextResponse.json({ error: 'Stripe configuration error' }, { status: 500 });
-    }
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],

@@ -2,6 +2,7 @@ import { openai } from '../openai';
 import { gatherTrendingData } from './trendingData';
 import { MemeTokenMetadata } from '@/types/memecoin';
 import { TokenGenerationPrompt } from '@/types/generation';
+import type { TrendingData } from '@/types/trending';
 
 // Fallback model - GPT-3.5-turbo is cheaper than GPT-4
 const FALLBACK_MODEL = "gpt-3.5-turbo";

@@ -41,7 +41,8 @@ export class WalletService {
       }
 
       // Log the transaction details for debugging
-      const recipientAddress = transaction.transaction.message.accountKeys[1].toString();
+      const accountKeys = transaction.transaction.message.getAccountKeys();
+      const recipientAddress = accountKeys.get(1)?.toString();
       const expectedAddress = this.treasuryWallet.toString();
       const amount = (meta.postBalances[1] - meta.preBalances[1]) / LAMPORTS_PER_SOL;
 
